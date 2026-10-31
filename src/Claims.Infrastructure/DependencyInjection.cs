@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Claims.Application.Abstractions;
 using Claims.Infrastructure.Auditing;
 using Claims.Infrastructure.Persistence;
@@ -19,13 +20,18 @@ public static class DependencyInjection
             provider.GetRequiredService<IMongoClient>(),
             provider.GetRequiredService<IConfiguration>()["MongoDb:DatabaseName"] ?? "Claims"));
 
-        services.AddDbContext<AuditContext>((provider, options) => options.UseSqlServer(
+        services.AddDbContextFactory<AuditContext>((provider, options) => options.UseSqlServer(
             ConnectionString(provider, "SqlServer"),
             sql => sql.EnableRetryOnFailure().MigrationsHistoryTable(HistoryRepository.DefaultTableName, "audit")));
 
         services.AddScoped<IClaimRepository, ClaimRepository>();
         services.AddScoped<ICoverRepository, CoverRepository>();
-        services.AddScoped<IAuditPublisher, SqlAuditPublisher>();
+
+        services.AddSingleton(Channel.CreateBounded<AuditEvent>(
+            new BoundedChannelOptions(1000) { FullMode = BoundedChannelFullMode.Wait, SingleReader = true }));
+        services.AddSingleton<IAuditPublisher, ChannelAuditPublisher>();
+        services.AddSingleton<IAuditStore, SqlAuditStore>();
+        services.AddHostedService<AuditWorker>();
         return services;
     }
 
