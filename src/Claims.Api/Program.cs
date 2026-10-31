@@ -1,37 +1,21 @@
-using Claims.Auditing;
-using Claims.Controllers;
-using Microsoft.EntityFrameworkCore;
-using MongoDB.Driver;
 using System.Text.Json.Serialization;
+using Claims.Application;
+using Claims.Infrastructure;
+using Claims.Infrastructure.Auditing;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services
     .AddControllers()
-    .AddJsonOptions(x =>
-    {
-        x.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-    });
-
-builder.Services.AddDbContext<AuditContext>((services, options) =>
-    options.UseSqlServer(services.GetRequiredService<IConfiguration>().GetConnectionString("SqlServer")));
-
-builder.Services.AddSingleton<IMongoClient>(services =>
-    new MongoClient(services.GetRequiredService<IConfiguration>().GetConnectionString("MongoDb")));
-
-builder.Services.AddDbContext<ClaimsContext>((services, options) =>
-    options.UseMongoDB(
-        services.GetRequiredService<IMongoClient>(),
-        services.GetRequiredService<IConfiguration>()["MongoDb:DatabaseName"]!));
-
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -39,17 +23,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
-using (var scope = app.Services.CreateScope())
+await using (var scope = app.Services.CreateAsyncScope())
 {
-    var context = scope.ServiceProvider.GetRequiredService<AuditContext>();
-    context.Database.Migrate();
+    await scope.ServiceProvider.GetRequiredService<AuditContext>().Database.MigrateAsync();
 }
 
-app.Run();
+await app.RunAsync();
 
 public partial class Program { }
