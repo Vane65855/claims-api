@@ -20,4 +20,15 @@ public class InsurancePeriodTests
 
         Assert.Equal(366, period.Days);
     }
+
+    [Fact]
+    public void The_period_contains_its_start_date_but_not_its_end_date()
+    {
+        var period = new InsurancePeriod(new DateOnly(2027, 1, 1), new DateOnly(2027, 1, 31));
+
+        Assert.True(period.Contains(new DateOnly(2027, 1, 1)));
+        Assert.True(period.Contains(new DateOnly(2027, 1, 30)));
+        Assert.False(period.Contains(new DateOnly(2027, 1, 31)));
+        Assert.False(period.Contains(new DateOnly(2026, 12, 31)));
+    }
 }

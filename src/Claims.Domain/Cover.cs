@@ -11,6 +11,8 @@ public class Cover
     public CoverType Type { get; init; }
 
     public decimal Premium { get; init; }
+
+    public InsurancePeriod Period => new(StartDate, EndDate);
 }
 
 public enum CoverType

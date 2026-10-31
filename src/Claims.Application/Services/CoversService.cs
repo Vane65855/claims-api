@@ -1,10 +1,15 @@
 using Claims.Application.Abstractions;
 using Claims.Application.Contracts;
 using Claims.Domain;
+using FluentValidation;
 
 namespace Claims.Application.Services;
 
-public sealed class CoversService(ICoverRepository covers, IAuditPublisher audit, TimeProvider clock)
+public sealed class CoversService(
+    ICoverRepository covers,
+    IValidator<CreateCoverRequest> validator,
+    IAuditPublisher audit,
+    TimeProvider clock)
 {
     public async Task<IReadOnlyList<CoverResponse>> ListAsync(CancellationToken cancellationToken) =>
         (await covers.ListAsync(cancellationToken)).Select(cover => cover.ToResponse()).ToList();
@@ -14,13 +19,15 @@ public sealed class CoversService(ICoverRepository covers, IAuditPublisher audit
 
     public async Task<CoverResponse> CreateAsync(CreateCoverRequest request, CancellationToken cancellationToken)
     {
+        validator.ValidateAndThrow(request);
+
         var cover = new Cover
         {
             Id = Guid.NewGuid().ToString(),
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Type = request.Type,
-            Premium = Quote(request)
+            Premium = Premium(request)
         };
 
         await covers.AddAsync(cover, cancellationToken);
@@ -39,7 +46,13 @@ public sealed class CoversService(ICoverRepository covers, IAuditPublisher audit
         return true;
     }
 
-    public decimal Quote(CreateCoverRequest request) =>
+    public decimal Quote(CreateCoverRequest request)
+    {
+        validator.ValidateAndThrow(request);
+        return Premium(request);
+    }
+
+    private static decimal Premium(CreateCoverRequest request) =>
         PremiumCalculator.Calculate(request.Type, new InsurancePeriod(request.StartDate, request.EndDate).Days);
 
     private ValueTask PublishAsync(string coverId, AuditOperation operation) =>
