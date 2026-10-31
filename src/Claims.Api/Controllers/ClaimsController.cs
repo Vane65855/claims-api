@@ -9,18 +9,30 @@ namespace Claims.Api.Controllers;
 public class ClaimsController(ClaimsService claims) : ControllerBase
 {
     [HttpGet]
-    public Task<IReadOnlyList<ClaimResponse>> GetAsync(CancellationToken cancellationToken) =>
+    public Task<IReadOnlyList<ClaimResponse>> GetAll(CancellationToken cancellationToken) =>
         claims.ListAsync(cancellationToken);
 
+    [HttpGet("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ClaimResponse>> GetById(string id, CancellationToken cancellationToken)
+    {
+        var claim = await claims.GetAsync(id, cancellationToken);
+        return claim is null ? NotFound() : claim;
+    }
+
     [HttpPost]
-    public async Task<ActionResult> CreateAsync(CreateClaimRequest request, CancellationToken cancellationToken) =>
-        Ok(await claims.CreateAsync(request, cancellationToken));
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ClaimResponse>> Create(CreateClaimRequest request, CancellationToken cancellationToken)
+    {
+        var claim = await claims.CreateAsync(request, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id = claim.Id }, claim);
+    }
 
     [HttpDelete("{id}")]
-    public Task DeleteAsync(string id, CancellationToken cancellationToken) =>
-        claims.DeleteAsync(id, cancellationToken);
-
-    [HttpGet("{id}")]
-    public Task<ClaimResponse?> GetAsync(string id, CancellationToken cancellationToken) =>
-        claims.GetAsync(id, cancellationToken);
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken) =>
+        await claims.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
 }
