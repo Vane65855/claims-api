@@ -1,25 +1,30 @@
-﻿using Microsoft.AspNetCore.Mvc.Testing;
+﻿using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Xunit;
 
-namespace Claims.Tests
+namespace Claims.IntegrationTests;
+
+public class ClaimsControllerTests(ApiFixture fixture)
 {
-    public class ClaimsControllerTests
+    [Fact]
+    public async Task Listing_claims_returns_a_json_array()
     {
-        [Fact]
-        public async Task Get_Claims()
+        var response = await fixture.Client.GetAsync("/Claims", TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(TestContext.Current.CancellationToken);
+        Assert.Equal(JsonValueKind.Array, body.ValueKind);
+    }
+
+    [Fact]
+    public async Task Thirty_requests_in_a_row_all_succeed()
+    {
+        for (var i = 0; i < 30; i++)
         {
-            var application = new WebApplicationFactory<Program>()
-                .WithWebHostBuilder(_ =>
-                {});
+            var response = await fixture.Client.GetAsync("/Claims", TestContext.Current.CancellationToken);
 
-            var client = application.CreateClient();
-
-            var response = await client.GetAsync("/Claims");
-
-            response.EnsureSuccessStatusCode();
-
-            //TODO: Apart from ensuring 200 OK being returned, what else can be asserted?
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
-
     }
 }
