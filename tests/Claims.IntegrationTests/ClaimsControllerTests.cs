@@ -2,7 +2,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Claims.Application.Contracts;
-using Claims.Domain;
 using Xunit;
 
 namespace Claims.IntegrationTests;
@@ -35,8 +34,9 @@ public class ClaimsControllerTests(ApiFixture fixture)
     {
         var ct = TestContext.Current.CancellationToken;
         var cover = await fixture.Client.CreateCoverAsync();
+        var request = TestApi.NewClaim(cover.Id, cover.StartDate);
 
-        var response = await fixture.Client.PostAsJsonAsync("/Claims", NewClaim(cover.Id, cover.StartDate), TestApi.Json, ct);
+        var response = await fixture.Client.PostAsJsonAsync("/Claims", request, TestApi.Json, ct);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<ClaimResponse>(TestApi.Json, ct);
@@ -49,7 +49,7 @@ public class ClaimsControllerTests(ApiFixture fixture)
     {
         var ct = TestContext.Current.CancellationToken;
         var cover = await fixture.Client.CreateCoverAsync();
-        var request = NewClaim(cover.Id, cover.StartDate) with { DamageCost = 100_000.01m };
+        var request = TestApi.NewClaim(cover.Id, cover.StartDate) with { DamageCost = 100_000.01m };
 
         var response = await fixture.Client.PostAsJsonAsync("/Claims", request, TestApi.Json, ct);
 
@@ -59,20 +59,11 @@ public class ClaimsControllerTests(ApiFixture fixture)
     [Fact]
     public async Task A_claim_for_an_unknown_cover_is_rejected_on_cover_id()
     {
-        var request = NewClaim(Guid.NewGuid().ToString(), TestApi.Today.AddDays(30));
+        var request = TestApi.NewClaim(Guid.NewGuid().ToString(), TestApi.Today.AddDays(30));
 
         var response = await fixture.Client.PostAsJsonAsync(
             "/Claims", request, TestApi.Json, TestContext.Current.CancellationToken);
 
         await response.AssertValidationErrorAsync("coverId");
     }
-
-    private static CreateClaimRequest NewClaim(string coverId, DateOnly created) => new()
-    {
-        CoverId = coverId,
-        Created = created,
-        Name = "Hull damage",
-        Type = ClaimType.Collision,
-        DamageCost = 1_000m
-    };
 }

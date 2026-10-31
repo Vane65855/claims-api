@@ -31,6 +31,25 @@ internal static class TestApi
         return (await response.Content.ReadFromJsonAsync<CoverResponse>(Json, TestContext.Current.CancellationToken))!;
     }
 
+    public static async Task<ClaimResponse> CreateClaimAsync(this HttpClient client)
+    {
+        var cover = await client.CreateCoverAsync();
+
+        var response = await client.PostAsJsonAsync(
+            "/Claims", NewClaim(cover.Id, cover.StartDate), Json, TestContext.Current.CancellationToken);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<ClaimResponse>(Json, TestContext.Current.CancellationToken))!;
+    }
+
+    public static CreateClaimRequest NewClaim(string coverId, DateOnly created) => new()
+    {
+        CoverId = coverId,
+        Created = created,
+        Name = "Hull damage",
+        Type = ClaimType.Collision,
+        DamageCost = 1_000m
+    };
+
     public static async Task AssertValidationErrorAsync(this HttpResponseMessage response, string field)
     {
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
