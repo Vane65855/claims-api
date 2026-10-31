@@ -15,7 +15,7 @@ public sealed class ApiFixture : IAsyncLifetime
         .WithDatabase("ClaimsAudit")
         .Build();
 
-    private readonly MongoDbContainer _mongoDb = new MongoDbBuilder("mongo:8.0").Build();
+    private readonly MongoDbContainer _mongoDb = new MongoDbBuilder("mongo:9.0.4").Build();
 
     private ApiFactory? _factory;
 
