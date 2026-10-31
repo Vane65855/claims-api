@@ -22,4 +22,9 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore Claims.sln
       - run: dotnet build Claims.sln -c Release --no-restore
-      - run: dotnet test --solution Claims.sln -c Release --no-build
+      - run: dotnet test --solution Claims.sln -c Release --no-build --results-directory TestResults -- --report-xunit-trx
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results
+          path: TestResults
