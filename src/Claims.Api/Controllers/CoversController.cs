@@ -2,6 +2,7 @@ using Claims.Application.Contracts;
 using Claims.Application.Services;
 using Claims.Domain;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Claims.Api.Controllers;
 
@@ -10,7 +11,12 @@ namespace Claims.Api.Controllers;
 public class CoversController(CoversService covers) : ControllerBase
 {
     [HttpPost("compute")]
-    public ActionResult<decimal> ComputePremium(DateOnly startDate, DateOnly endDate, CoverType coverType) =>
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    public ActionResult<decimal> ComputePremium(
+        [BindRequired] DateOnly startDate,
+        [BindRequired] DateOnly endDate,
+        [BindRequired] CoverType coverType) =>
         covers.Quote(new CreateCoverRequest { StartDate = startDate, EndDate = endDate, Type = coverType });
 
     [HttpGet]

@@ -38,14 +38,50 @@ public class CoversControllerTests(ApiFixture fixture)
     [Fact]
     public async Task A_timestamp_for_a_date_field_is_rejected()
     {
-        var ct = TestContext.Current.CancellationToken;
         var startDate = $"{TestApi.Today.AddDays(30):O}T00:00:00";
         var endDate = TestApi.Today.AddDays(60).ToString("O");
 
-        var response = await fixture.Client.PostAsJsonAsync("/Covers", new { startDate, endDate, type = "Yacht" }, ct);
+        var response = await fixture.Client.PostAsJsonAsync(
+            "/Covers", new { startDate, endDate, type = "Yacht" }, TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(ct);
-        Assert.True(problem.GetProperty("errors").TryGetProperty("$.startDate", out _));
+        await response.AssertValidationErrorAsync("$.startDate");
+    }
+
+    [Fact]
+    public async Task Enums_are_accepted_by_name_only()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var startDate = TestApi.Today.AddDays(30).ToString("O");
+        var endDate = TestApi.Today.AddDays(60).ToString("O");
+
+        var byNumber = await fixture.Client.PostAsJsonAsync("/Covers", new { startDate, endDate, type = 0 }, ct);
+        var byName = await fixture.Client.PostAsJsonAsync("/Covers", new { startDate, endDate, type = "Yacht" }, ct);
+
+        await byNumber.AssertValidationErrorAsync("$.type");
+        Assert.Equal(HttpStatusCode.Created, byName.StatusCode);
+    }
+
+    [Fact]
+    public async Task Computing_a_premium_returns_the_price()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var start = TestApi.Today.AddDays(30);
+
+        var response = await fixture.Client.PostAsync(
+            $"/Covers/compute?startDate={start:O}&endDate={start.AddDays(30):O}&coverType=Yacht", null, ct);
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal(41_250m, await response.Content.ReadFromJsonAsync<decimal>(ct));
+    }
+
+    [Fact]
+    public async Task Computing_a_premium_for_an_empty_period_is_rejected()
+    {
+        var day = TestApi.Today.AddDays(30).ToString("O");
+
+        var response = await fixture.Client.PostAsync(
+            $"/Covers/compute?startDate={day}&endDate={day}&coverType=Yacht", null, TestContext.Current.CancellationToken);
+
+        await response.AssertValidationErrorAsync("endDate");
     }
 }
