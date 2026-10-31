@@ -40,7 +40,7 @@ public sealed class CoversService(ICoverRepository covers, IAuditPublisher audit
     }
 
     public decimal Quote(CreateCoverRequest request) =>
-        PremiumCalculator.Calculate(request.Type, request.EndDate.DayNumber - request.StartDate.DayNumber);
+        PremiumCalculator.Calculate(request.Type, new InsurancePeriod(request.StartDate, request.EndDate).Days);
 
     private ValueTask PublishAsync(string coverId, AuditOperation operation) =>
         audit.PublishAsync(new AuditEvent(
